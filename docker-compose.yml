@@ -7,3 +7,10 @@ services:
     ports:
       - "8080:80" # Mappe le port 80 du conteneur au port 8080 de votre machine
     container_name: static-web-server
+
+  api:
+    build:
+      context: ./labo5-http-code-java
+    ports:
+      - "8081:8081"  # Redirige le port 8081 du conteneur vers le port 8081 de l'hôte
+    container_name: todo-api
