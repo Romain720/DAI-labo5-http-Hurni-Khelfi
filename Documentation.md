@@ -181,16 +181,3 @@ services:
    ```bash
    curl -X DELETE http://localhost:8081/api/todos/1
    ```
-
-## Notes importantes
-
-1. **Ports**
-   - Le serveur web utilise le port 80 en interne, mappé sur le port 8080 en externe
-   - L'API utilise le port 8081 en interne et externe
-
-2. **CORS**
-   - L'API est configurée pour accepter les requêtes de n'importe quelle origine (CORS enabled)
-
-3. **Persistance**
-   - Les données sont stockées en mémoire et sont perdues lors du redémarrage du conteneur
-   - Pour une utilisation en production, il faudrait ajouter une base de données persistante
