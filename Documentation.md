@@ -6,8 +6,9 @@
 3. [Configuration Maven](#configuration-maven)
 4. [Configuration Docker](#configuration-docker)
 5. [Déploiement](#déploiement)
+6. [Reverse Proxy avec Traefik](#reverse-proxy-avec-traefik)
 
-## Structure du Projet
+## 1. Structure du Projet
 
 Le projet est composé de deux parties principales :
 1. Une API REST Todo en Java avec Javalin
@@ -37,14 +38,14 @@ project/
 └── docker-compose.yml
 ```
 
-## API REST Todo
+## 2. API REST Todo
 
 ### Endpoints
-- `GET /api/todos` : Récupérer tous les todos
-- `GET /api/todos/{id}` : Récupérer un todo spécifique
-- `POST /api/todos` : Créer un nouveau todo
-- `PUT /api/todos/{id}` : Mettre à jour un todo existant
-- `DELETE /api/todos/{id}` : Supprimer un todo
+- `GET /api` : Récupérer tous les todos
+- `GET /api/{id}` : Récupérer un todo spécifique
+- `POST /api` : Créer un nouveau todo
+- `PUT /api/{id}` : Mettre à jour un todo existant
+- `DELETE /api/{id}` : Supprimer un todo
 
 ### Modèle Todo
 ```java
@@ -153,31 +154,97 @@ services:
    ```
 
 3. **Accès aux services**
-   - Site Web : http://localhost:8080
-   - API : http://localhost:8081/api/todos
-
+   - Site Web : http://localhost/
+   - API : http://localhost/api
+   
 ### Exemples d'utilisation de l'API
 
 1. **Créer un nouveau todo**
    ```bash
    curl -X POST -H "Content-Type: application/json" \
         -d '{"title":"Nouvelle tâche","description":"Description","completed":false}' \
-        http://localhost:8081/api/todos
+        http://localhost:8081/api
    ```
 
 2. **Récupérer tous les todos**
    ```bash
-   curl http://localhost:8081/api/todos
+   curl http://localhost:8081/api
    ```
 
 3. **Mettre à jour un todo**
    ```bash
    curl -X PUT -H "Content-Type: application/json" \
         -d '{"title":"Tâche modifiée","description":"Nouvelle description","completed":true}' \
-        http://localhost:8081/api/todos/1
+        http://localhost:8081/api/1
    ```
 
 4. **Supprimer un todo**
    ```bash
-   curl -X DELETE http://localhost:8081/api/todos/1
+   curl -X DELETE http://localhost:8081/api/1
    ```
+
+## Reverse Proxy avec Traefik
+
+### Configuration
+
+Le reverse proxy Traefik est configuré pour :
+1. Router le trafic vers les services appropriés
+2. Fournir un tableau de bord pour la surveillance
+3. S'intégrer avec Docker pour la découverte de services
+
+#### Points d'accès
+- Site web statique : `http://localhost/`
+- API : `http://localhost/api`
+- Dashboard Traefik : `http://localhost:8080`
+
+#### Configuration Traefik
+```yaml
+reverse_proxy:
+  image: traefik:v2.10
+  command:
+    - "--api.insecure=true"           # Active le dashboard (en mode non sécurisé pour le développement)
+    - "--providers.docker=true"        # Active l'intégration Docker
+    - "--providers.docker.exposedbydefault=false"  # Désactive l'exposition automatique des services
+    - "--entrypoints.web.address=:80"  # Configure le point d'entrée web sur le port 80
+  ports:
+    - "80:80"      # Port pour le trafic web
+    - "8080:8080"  # Port pour le dashboard
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro  # Accès au socket Docker (lecture seule)
+```
+
+#### Configuration des Services
+
+##### Service Web Statique
+```yaml
+labels:
+  - "traefik.enable=true"  # Active Traefik pour ce service
+  - "traefik.http.routers.web.rule=PathPrefix(`/`)"  # Route tout le trafic racine vers ce service
+  - "traefik.http.routers.web.entrypoints=web"  # Utilise le point d'entrée web
+  - "traefik.http.services.web.loadbalancer.server.port=80"  # Port du service
+```
+
+##### Service API
+```yaml
+labels:
+  - "traefik.enable=true"  # Active Traefik pour ce service
+  - "traefik.http.routers.api.rule=PathPrefix(`/api`)"  # Route le trafic /api vers ce service
+  - "traefik.http.routers.api.entrypoints=web"  # Utilise le point d'entrée web
+  - "traefik.http.services.api.loadbalancer.server.port=8081"  # Port du service
+```
+
+### Sécurité
+L'utilisation d'un reverse proxy améliore la sécurité de l'infrastructure de plusieurs manières :
+1. **Isolation** : Les services backend ne sont pas directement exposés à Internet
+2. **Point d'entrée unique** : Facilite la mise en place de règles de sécurité centralisées
+3. **Masquage de l'infrastructure** : Les détails de l'infrastructure interne sont cachés aux clients
+
+### Utilisation
+1. Démarrer l'infrastructure :
+   ```bash
+   docker compose up -d
+   ```
+2. Accéder aux services :
+   - Site web : http://localhost/
+   - API : http://localhost/api
+   - Dashboard Traefik : http://localhost:8080

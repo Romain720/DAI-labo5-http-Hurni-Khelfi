@@ -15,11 +15,11 @@ public class Main {
         }).start(8081);
 
         // CRUD endpoints
-        app.get("/api/todos", Main::getAllTodos);
-        app.get("/api/todos/{id}", Main::getTodo);
-        app.post("/api/todos", Main::createTodo);
-        app.put("/api/todos/{id}", Main::updateTodo);
-        app.delete("/api/todos/{id}", Main::deleteTodo);
+        app.get("/api", Main::getAllTodos);
+        app.get("/api/{id}", Main::getTodo);
+        app.post("/api", Main::createTodo);
+        app.put("/api/{id}", Main::updateTodo);
+        app.delete("/api/{id}", Main::deleteTodo);
     }
 
     private static void getAllTodos(Context ctx) {

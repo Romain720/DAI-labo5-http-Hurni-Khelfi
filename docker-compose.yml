@@ -1,16 +1,40 @@
 version: '3.8'
 
 services:
+  reverse_proxy:
+    image: traefik:v2.10
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"  # Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    container_name: traefik
+
   web:
     build:
-      context: ./static-web-server # Chemin vers le dossier contenant votre Dockerfile
-    ports:
-      - "8080:80" # Mappe le port 80 du conteneur au port 8080 de votre machine
+      context: ./static-web-server
+    expose:
+      - "80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.web.entrypoints=web"
+      - "traefik.http.services.web.loadbalancer.server.port=80"
     container_name: static-web-server
 
   api:
     build:
       context: ./labo5-http-code-java
-    ports:
-      - "8081:8081"  # Redirige le port 8081 du conteneur vers le port 8081 de l'hôte
+    expose:
+      - "8081"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.api.entrypoints=web"
+      - "traefik.http.services.api.loadbalancer.server.port=8081"
     container_name: todo-api
