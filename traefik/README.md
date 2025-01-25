@@ -162,3 +162,139 @@ labels:
 ✅ Routage correct vers l'API  
 ✅ Documentation complète  
 ✅ Tests de fonctionnement validés
+
+## Mise à jour du site statique
+
+Les liens vers l'API dans le site web statique ont été mis à jour pour utiliser HTTPS :
+
+### 1. Modifications des URLs
+
+Dans tous les fichiers HTML (`index.html`, `contact.html`, `trainer.html`, `why.html`), les liens vers l'API ont été modifiés :
+
+Avant :
+```html
+<a class="nav-link" href="http://localhost:8081/api" target="_blank">API</a>
+```
+
+Après :
+```html
+<a class="nav-link" href="https://localhost/api" target="_blank">API</a>
+```
+
+Changements effectués :
+- Protocole changé de `http://` à `https://`
+- Port 8081 supprimé car Traefik gère maintenant le routage
+- Chemin `/api` maintenu pour la cohérence avec la configuration de Traefik
+
+### 2. Impact des changements
+
+Ces modifications assurent que :
+- Toutes les communications sont sécurisées via HTTPS
+- Les requêtes passent correctement par le reverse proxy Traefik
+- Les sticky sessions sont maintenues pour l'API
+- L'expérience utilisateur est cohérente avec le reste de l'infrastructure sécurisée
+
+# Étape 7 : Sécurisation avec HTTPS
+
+## Objectif
+L'objectif de cette étape est de sécuriser notre infrastructure en utilisant HTTPS pour toutes les communications entre le navigateur et le reverse proxy Traefik.
+
+## Configuration
+
+### 1. Configuration de Traefik (`traefik.yaml`)
+
+```yaml
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+
+tls:
+  certificates:
+    - certFile: "/etc/certs/cert.crt"
+      keyFile: "/etc/certs/cert.key"
+```
+
+Cette configuration :
+- Définit deux points d'entrée : `web` (port 80) et `websecure` (port 443)
+- Configure la redirection automatique de HTTP vers HTTPS
+- Spécifie l'emplacement des certificats SSL
+
+### 2. Configuration Docker Compose (`docker-compose.yml`)
+
+```yaml
+services:
+  reverse-proxy:
+    # ... autres configurations ...
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - ./certificates:/etc/certs
+      - ./traefik.yaml:/etc/traefik/traefik.yaml
+
+  web:
+    # ... autres configurations ...
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`localhost`) && PathPrefix(`/`)"
+      - "traefik.http.routers.web.entrypoints=websecure"
+      - "traefik.http.routers.web.tls=true"
+
+  todo-api:
+    # ... autres configurations ...
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls=true"
+```
+
+Modifications principales :
+- Ajout du port 443 pour HTTPS
+- Montage des certificats SSL
+- Configuration TLS pour les services web et API
+- Définition des règles de routage avec Host et PathPrefix
+
+## Points de vérification
+
+Pour vérifier que la configuration HTTPS fonctionne correctement :
+
+1. Accès aux services :
+   - Site web : https://localhost
+   - API : https://localhost/api
+   - Dashboard Traefik : http://localhost:8080
+
+2. Vérifications :
+   - Le navigateur affiche le cadenas HTTPS
+   - La redirection HTTP vers HTTPS fonctionne
+   - Les certificats SSL sont correctement chargés
+
+## Résolution des problèmes courants
+
+1. Erreur de certificat :
+   - Vérifier que les certificats sont correctement montés dans `/etc/certs`
+   - Vérifier les permissions des fichiers de certificats
+
+2. Erreur de redirection :
+   - Vérifier la configuration des points d'entrée dans `traefik.yaml`
+   - Vérifier les labels des services dans `docker-compose.yml`
+
+3. Service inaccessible :
+   - Vérifier que les ports 80 et 443 sont libres
+   - Vérifier les logs de Traefik avec `docker logs traefik`
+
+## Sécurité
+
+Points importants concernant la sécurité :
+- Les certificats utilisés sont auto-signés (acceptables en développement)
+- La redirection HTTP vers HTTPS est obligatoire
+- Le dashboard Traefik reste accessible en HTTP (port 8080)
+- Les sticky sessions sont maintenues pour l'API via HTTPS

@@ -1,6 +1,3 @@
-
-reponds en français.
-
 DAI Lab - HTTP infrastructure
 =============================
 
