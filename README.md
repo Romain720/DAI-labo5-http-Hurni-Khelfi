@@ -1,281 +1,1034 @@
-DAI Lab - HTTP infrastructure
-=============================
+# DAI labo 5 http, rapport
 
-Objectives
-----------
+# Étape 1 : Site Web Statique
 
-The main objective of this lab is to learn to build a complete Web infrastructure. This means, we will build a server infrastructure that serves a static Web site and a dynamic HTTP API. The diagram below shows the architecture of the infrastructure that we will build.
+## Objectif
 
-```mermaid
-graph LR
-    subgraph Client
-        B((Browser))
-    end
-    subgraph Server
-        RP(Reverse\nProxy)
-        SS(Static\nWeb server)
-        DS(Dynamic\nAPI server)
-    end
-    B -.-> RP
-    RP --> SS
-    RP --> DS
+L'objectif de cette étape est de créer une image Docker qui contient un serveur HTTP Nginx servant un site Web statique. Ce site Web statique est une simple page HTML que nous avons créée en utilisant un modèle gratuit.
+
+## Procédure suivie
+
+### 1. Créer le dossier pour le site Web statique
+
+Nous avons créé un dossier `static-web` pour contenir les fichiers de notre site Web statique. À l'intérieur de ce dossier, nous avons ajouté un fichier `index.html` qui constitue la page d'accueil de notre site. Le contenu du fichier HTML a été basé sur un modèle gratuit trouvé sur [Start Bootstrap](https://startbootstrap.com/).
+
+### 2. Création du fichier Dockerfile
+
+Le fichier `Dockerfile` permet de construire une image Docker avec Nginx pour diffuser le contenu statique. Voici le contenu du `Dockerfile` :
+
+```Dockerfile
+# Utiliser l'image Nginx de base
+FROM nginx:latest
+
+# Copier le contenu statique du site dans le dossier Nginx
+COPY ./public /usr/share/nginx/html
+
+# Exposer le port 80 pour la diffusion du site
+EXPOSE 80
+
 ```
 
-In addition to the basic requirement of service static and dynamic content, the infrastructure will have the following features:
+### 3. Configuration de Nginx
 
-- **Scalability**: both the static and the dynamic server will be deployed as a cluster of several instances. The reverse proxy will be configured to distribute the load among the instances.
-- **Security**: the connection between the browser and the reverse proxy will be encrypted using HTTPS.
-- **Management**: a Web application will be deployed to manage the infrastructure. This application will allow to start/stop instances of the servers and to monitor the state of the infrastructure.
+Le fichier `nginx.conf` configure le comportement du serveur Nginx :
 
-General instructions
---------------------
+```nginx
+server {
+    listen 80;              # Écoute sur le port 80 (HTTP)
+    server_name localhost;  # Nom du serveur
 
-- This is a **BIG** lab and you will need a lot of time to complete it. 
-- You will work in **groups of 2 students** and use a Git workflow to collaborate.
-- For certain steps you will need to do research in the documentation by yourself (we are here to help, but we will not give you step-by-step instructions!) or you will need to be creative (do not expect complete guidelines).
-- Read carefully all the **acceptance criteria** of each step. They will tell you what you need to do to complete the step.
-- After the lab, each group will perform a short **demo** of their infrastructure.
-- **You have to write a report with a short descriptioin for each of the steps.** Please do that directly in the repo, in one or more markdown files. Start in the README.md file at the root of your directory.
-- The report must contain the procedure that you have followed to prove that your configuration is correct (what you did do make the step work and what you would do if you were doing a demo).
-
-
-Step 0: GitHub repository
--------------------------
-
-Create a GitHub repository for your project. You will use this repository to collaborate with your team mate. You will also use it to submit your work. 
-
-> [!IMPORTANT]
-> Be careful to keep a clear structure of the repository such that the different components are clearly separated.
-
-### Acceptance criteria
-
-- [ ] You have created a GitHub repository for your project.
-- [ ] The respository contains a Readme file that you will use to document your project.
-
-
-Step 1: Static Web site
------------------------
-
-The goal of this step is to build a Docker image that contains a static HTTP server Nginx. The server will serve a static Web site. The static Web site will be a single page with a nice looking template. You can use a free template for example from [Free-CSS](https://www.free-css.com/free-css-templates) or [Start Bootstrap](https://startbootstrap.com/themes).
-
-### Acceptance criteria
-
-- [ ] You have created a separate folder in your respository for your static Web server.
-- [ ] You have a Dockerfile based on the Nginx image. The Dockerfile copies the static site content into the image.
-- [ ] You have configured the `nginx.conf` configuration file to serve the static content on a port (normally 80).
-- [ ] You are able to explain the content of the `nginx.conf` file.
-- [ ] You can run the image and access the static content from a browser.
-- [ ] You have **documented** your configuration in your report.
-
-
-Step 2: Docker compose
-----------------------
-
-The goal of this step is to use Docker compose to deploy a first version of the infrastructure with a single service: the static Web server.
-
-In addition to the basic docker compose configuration, we want to be able to rebuild the docker image of the Web server. See the [Docker compose Build documentation](https://docs.docker.com/compose/compose-file/build/) for this part.
-
-### Acceptance criteria
-
-- [ ] You have added a docker compose configuration file to your GitHub repo.
-- [ ] You can start and stop an infrastructure with a single static Web server using docker compose.
-- [ ] You can access the Web server on your local machine on the respective port.
-- [ ] You can rebuild the docker image with `docker compose build`
-- [ ] You have **documented** your configuration in your report.
-
-
-Step 3: HTTP API server
------------------------
-
-This step requires a more work. The goal is to build a HTTP API with Javalin. You can implement any API of your choice, such as:
-
-- an API to manage a list of quotes of the day
-- an API to manage a list of TODO items
-- an API to manage a list of people
-
-Use your imagination and be creative!
-
-The only requirement is that the API supports at all CRUD operations, i.e.: Create, Read, Update, Delete. 
-
-Use a API testing tool such as Insomnia, Hoppscotch or Bruno to test all these operations.
-
-The server does not need to use a database. You can store the data in memory. But if you want to add a DB, feel free to do so.
-
-Once you're finished with the implementation, create a Dockerfile for the API server. Then add it as a service to your docker compose configuration.
-
-### Acceptance criteria
-
-- [ ] Your API supports all CRUD operations.
-- [ ] You are able to explain your implementation and walk us through the code.
-- [ ] You can start and stop the API server using docker compose.
-- [ ] You can access both the API and the static server from your browser.
-- [ ] You can rebuild the docker image with docker compose.
-- [ ] You can do demo where use an API testing tool to show that all CRUD operations work.
-- [ ] You have **documented** your implementation in your report.
-
-
-Step 4: Reverse proxy with Traefik
-----------------------------------
-
-The goal of this step is to place a reverse proxy in front of the dynamic and static Web servers such that the reverse proxy receives all connections and relays them to the respective Web server. 
-
-You will use [Traefik](https://traefik.io/traefik/) as a reverse proxy. Traefik interfaces directly with Docker to obtain the list of active backend servers. This means that it can dynamically adjust to the number of running server. Traefik has the particularity that it can be configured using labels in the docker compose file. This means that you do not need to write a configuration file for Traefik, but Traefik will read container configurations from the docker engine through the file `/var/run/docker.sock`.
-
-The steps to follow for this section are thus:
-
-- Add a new service "reverse_proxy" to your docker compose file using the Traefik docker image
-- Read the [Traefik Quick Start](https://doc.traefik.io/traefik/getting-started/quick-start/) documentation to establish the basic configuration.
-- Read the [Traefik & Docker](https://doc.traefik.io/traefik/routing/providers/docker/) documentation to learn how to configure Traefik to work with Docker.
-- Then implement the reverse proxy:
-  - relay the requests coming to "localhost" to the static HTTP server
-  - relay the requests coming to "localhost/api" to the API server. See the [Traefik router documentation](https://doc.traefik.io/traefik/routing/routers/) for managing routes based on path prefixes. 
-  - you will have to remove the `ports` configuration from the static and dynamic server in the docker compose file and replace them with `expose` configuration. Traefik will then be able to access the servers through the internal Docker network.
-- You can use the [Traefik dashboard](https://doc.traefik.io/traefik/operations/dashboard/) to monitor the state of the reverse proxy.
-
-### Acceptance criteria
-
-- [ ] You can do a demo where you start from an "empty" Docker environment (no container running) and using docker compose you can start your infrastructure with 3 containers: static server, dynamic server and reverse proxy
-- [ ] In the demo you can access each server from the browser in the demo. You can prove that the routing is done correctly through the reverse proxy.
-- [ ] You are able to explain how you have implemented the solution and walk us through the configuration and the code.
-- [ ] You are able to explain why a reverse proxy is useful to improve the security of the infrastructure.
-- [ ] You are able to explain how to access the dashboard of Traefik and how it works.
-- [ ] You have **documented** your configuration in your report.
-
-
-Step 5: Scalability and load balancing
---------------------------------------
-
-The goal of this section is to allow Traefik to dynamically detect several instances of the (dynamic/static) Web servers. You may have already done this in the previous step 3.
-
-Modify your docker compose file such that several instances of each server are started. Check that the reverse proxy distributes the connections between the different instances. Then, find a way to *dynamically* update the number of instances of each service with docker compose, without having to stop and restart the topology.
-
-### Acceptance criteria
-
-- [ ] You can use docker compose to start the infrastructure with several instances of each server (static and dynamic).
-- [ ] You can dynamically add and remove instances of each server.
-- [ ] You can do a demo to show that Traefik performs load balancing among the instances.
-- [ ] If you add or remove instances, you can show that the load balancer is dynamically updated to use the available instances.
-- [ ] You have **documented** your configuration in your report.
-
-
-Step 6: Load balancing with round-robin and sticky sessions
------------------------------------------------------------
-
-By default, Traefik uses round-robin to distribute the load among all available instances. However, if a service is stateful, it would be better to send requests of the same session always to the same instance. This is called sticky sessions.
-
-The goal of this step is to change the configuration such that:
-
-- Traefik uses sticky session for the dynamic server instances (API service).
-- Traefik continues to use round robin for the static servers (no change required).
-
-### Acceptance criteria
-
-- [ ] You do a setup to demonstrate the notion of sticky session.
-- [ ] You prove that your load balancer can distribute HTTP requests in a round-robin fashion to the static server nodes (because there is no state).
-- [ ] You prove that your load balancer can handle sticky sessions when forwarding HTTP requests to the dynamic server nodes.
-- [ ] You have **documented** your configuration and your validation procedure in your report.
-
-
-Step 7: Securing Traefik with HTTPS
------------------------------------
-
-Any real-world web infrastructure must be secured with HTTPS instead of clear-text HTTP. The goal of this step is to configure Traefik to use HTTPS with the clients. The schema below shows the architecture.
-
-```mermaid
-
-graph LR
-    subgraph Client
-        B((Browser))
-    end
-    subgraph Server
-        RP(Reverse\nProxy)
-        SS(Static\nWeb server)
-        DS(Dynamic\nAPI server)
-    end
-    B -. HTTPS .-> RP
-    RP -- HTTP --> SS
-    RP -- HTTP --> DS
+    location / {
+        root /usr/share/nginx/html;  # Dossier racine contenant les fichiers statiques
+        index index.html;            # Fichier par défaut à servir
+    }
+}
 ```
 
-This means that HTTPS is used for connection with clients, over the Internet. Inside the infrastructure, the connections between the reverse proxy and the servers are still done in clear-text HTTP.
+Cette configuration :
+- Configure le serveur pour écouter sur le port 80 (HTTP standard)
+- Définit le nom du serveur comme "localhost"
+- Spécifie que tous les fichiers statiques seront servis depuis le dossier `/usr/share/nginx/html`
+- Utilise `index.html` comme page par défaut
 
-### Certificate
+# Étape 2 : Configuration Docker Compose
 
-To do this, you will first need to generate an encryption certificate. Since the system is not exposed to the Internet, you cannot use a public certificate such as Let's encrypt, but have to generate a self-signed certificate. You can [do this using openssl](https://stackoverflow.com/questions/10175812/how-to-create-a-self-signed-certificate-with-openssl#10176685).
+Ce document décrit la configuration initiale de Docker Compose pour orchestrer notre serveur web statique.
 
-Once you got the two files (certificate and key), you can place them into a folder, which has to be [mounted as a volume in the Traefik container](https://docs.docker.com/compose/compose-file/compose-file-v3/#short-syntax-3). You can mount the volume at any path in the container, for example `/etc/traefik/certificates`.
+## Objectif
 
-### Traefik configuration file
+L'objectif de cette étape est de :
+1. Configurer Docker Compose pour gérer notre conteneur Nginx
+2. Faciliter le déploiement de l'application
+3. Préparer l'infrastructure pour l'ajout futur de services
 
-Up to now, you've configured Traefik through labels directely in the docker compose file. However, it is not possible to specify the location of the certificates to Traefik with labels. You have to create a configuration file `traefik.yaml`. 
+## Structure du Projet
 
-Again, you have to mount this file into the Traefik container as a volume, at the location `/etc/traefik/traefik.yaml`.
+```
+project/
+├── docker-compose.yml          # Configuration Docker Compose
+└── static-web-server/         # Dossier du serveur web statique
+    ├── Dockerfile
+    ├── nginx.conf
+    └── static-web-server/
+        └── ... (fichiers statiques)
+```
 
-The configuration file has to contain several sections:
+## Configuration Docker Compose
 
-- The [providers](https://doc.traefik.io/traefik/providers/docker/#configuration-examples) section to configure Traefik to read the configuration from Docker.
-- The [entrypoints](https://doc.traefik.io/traefik/routing/entrypoints/#configuration-examples) section to configure two endpoints:  `http` and `https`.
-- The [tls](https://doc.traefik.io/traefik/https/tls/#user-defined) section to configure the TLS certificates. Specify the location of the certificates as the location where you mounted the directory into the container (such as `/etc/traefik/certificates`).
-- In order to make the dashboard accessible, you have to configure the [api](https://doc.traefik.io/traefik/operations/dashboard/#insecure-mode) section. You can remove the respective labels from the docker compose file.
+Le fichier `docker-compose.yml` initial :
 
-### Activating the HTTPS entrypoint for the servers
+```yaml
 
-Finally, you have to activate HTTPS for the static and dynamic servers. This is done in the docker compose file. You have to add two labels to each server:
+services:
+  web:                         # Service pour le serveur web statique
+    build:                     # Configuration de build
+      context: ./static-web-server
+    ports:                     # Mapping des ports
+      - "8080:80"             # Port local 8080 vers port conteneur 80
+    container_name: static-web-server
+```
 
-- to activate the HTTPS entrypoint,
-- to set TLS to true.
+### Explication de la Configuration
 
-See the [Traefik documentation for Docker](https://doc.traefik.io/traefik/routing/providers/docker/#routers) for these two labels.
+1. **Services** :
+   - `web` : Nom du service pour notre serveur web statique.
+   
+2. **Build** :
+   - `context: ./static-web-server` : Indique le dossier contenant le Dockerfile.
+   
+3. **Ports** :
+   - `"8080:80"` : Redirige le port 8080 de l'hôte vers le port 80 du conteneur.
+   
+4. **Container Name** :
+   - `container_name: static-web-server` : Nom explicite pour le conteneur.
 
-### Testing
+## Commandes Docker Compose
 
-After these configurations it should be possible to access the static and the dynamic servers through HTTPS. The browser will complain that the sites are not secure, since the certificate is self-signed. But you can ignore this warning.
+### Démarrage des Services
+```bash
+# Construire et démarrer les services
+docker compose up -d
 
-If it does not work, go to the Traefik dashboard and check the configuration of the routers and the entrypoints.
+# Uniquement construire les images
+docker compose build
 
-### Acceptance criteria
+# Construire les images et démarrer les services
+docker compose up --build -d
+```
 
-- [ ] You can do a demo where you show that the static and dynamic servers are accessible through HTTPS.
-- [ ] You have **documented** your configuration in your report.
+### Gestion des Services
+```bash
+# Arrêter les services
+docker compose down
+
+# Voir les logs
+docker compose logs
+
+# Voir le statut des services
+docker compose ps
+```
+
+## Vérification
+
+1. **Accès au Site Web** :
+   - URL : `http://localhost:8080`
+   - Le site devrait être accessible via un navigateur web
+
+2. **Vérification des Conteneurs** :
+   ```bash
+   docker compose ps
+   ```
+   Devrait montrer le conteneur `static-web-server` en cours d'exécution.
+
+## Avantages de Docker Compose
+
+1. **Simplicité** :
+   - Configuration déclarative dans un seul fichier
+   - Commandes simples pour gérer l'ensemble des services
+
+2. **Reproductibilité** :
+   - Environnement identique pour tous les développeurs
+   - Configuration versionnée avec le code
+
+3. **Évolutivité** :
+   - Facilité d'ajout de nouveaux services
+   - Configuration simple des dépendances entre services
+
+## Critères d'Acceptation
+
+✅ Fichier docker-compose.yml créé et configuré  
+✅ Service web statique correctement défini  
+✅ Ports correctement mappés  
+✅ Documentation complète des commandes  
+✅ Services accessibles via les ports configurés
 
 
 
-Optional steps
-==============
 
-If you sucessfully complete all the steps above, you can reach a grade of 5.0. If you want to reach a higher grade, you can do one or more of the following optional steps. 
+# Étape 3 : API REST avec Javalin
 
-Optional step 1: Management UI
-------------------------------
+Ce document décrit l'implémentation de l'API REST utilisant Javalin pour la gestion des todos.
 
-The goal of this step is to deploy or develop a Web app that can be used to monitor and update your Web infrastructure dynamically. You should be able to list running containers, start/stop them and add/remove instances.
+## Structure du Projet
 
-- you use an existing solution (search on Google)
-- for extra points, develop your own Web app. In this case, you can use the Dockerode npm module (or another Docker client library, in any of the supported languages) to access the docker API.
+```
+labo5-http-code-java/
+├── src/
+│   └── main/
+│       └── java/
+│           └── org/
+│               └── example/
+│                   ├── Main.java          # Configuration Javalin et endpoints
+│                   ├── Todo.java          # Modèle de données
+│                   └── TodoService.java   # Logique métier
+├── Dockerfile                            # Configuration Docker
+└── pom.xml                              # Configuration Maven
+```
 
-### Acceptance criteria
+## Configuration Maven
 
-- [ ] You can do a demo to show the Management UI and manage the containers of your infrastructure.
-- [ ] You have **documented** how to use your solution.
-- [ ] You have **documented** your configuration in your report.
+Le fichier `pom.xml` définit les dépendances nécessaires :
+
+```xml
+<dependencies>
+    <!-- Javalin - Framework Web -->
+    <dependency>
+        <groupId>io.javalin</groupId>
+        <artifactId>javalin</artifactId>
+        <version>5.0.1</version>
+    </dependency>
+    
+    <!-- SLF4J - Logging -->
+    <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-simple</artifactId>
+        <version>1.7.36</version>
+    </dependency>
+    
+    <!-- Jackson - JSON Serialization -->
+    <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>2.15.2</version>
+    </dependency>
+</dependencies>
+```
+
+## Modèle de Données
+
+Le fichier `Todo.java` définit la structure d'un todo :
+
+```java
+public class Todo {
+    private Long id;
+    private String title;
+    private String description;
+    private boolean completed;
+
+    // Constructeurs, getters et setters
+}
+```
+
+## API REST Endpoints
+
+L'API expose les endpoints suivants dans `Main.java` :
+
+| Méthode | Endpoint     | Description                    | Corps de la Requête              |
+|---------|-------------|--------------------------------|----------------------------------|
+| GET     | /api        | Récupérer tous les todos       | -                                |
+| GET     | /api/{id}   | Récupérer un todo spécifique   | -                                |
+| POST    | /api        | Créer un nouveau todo          | `{"title": "", "description": ""}`|
+| PUT     | /api/{id}   | Mettre à jour un todo existant | `{"title": "", "description": ""}`|
+| DELETE  | /api/{id}   | Supprimer un todo              | -                                |
+
+### Configuration Javalin
+
+```java
+public static void main(String[] args) {
+    var app = Javalin.create(config -> {
+        config.plugins.enableCors(cors -> cors.add(it -> {
+            it.allowHost("localhost:8080");
+            it.allowHost("localhost:80");
+        }));
+    }).start(8081);
+
+    // Configuration des routes...
+}
+```
+
+## Configuration Docker
+
+Le `Dockerfile` pour l'API :
+
+```dockerfile
+# Étape de build
+FROM maven:3.9.5-eclipse-temurin-21-alpine AS build
+WORKDIR /app
+COPY . .
+RUN mvn package
+
+# Étape d'exécution
+FROM openjdk:21
+WORKDIR /app
+COPY --from=build /app/target/labo5-http-code-java-1.0-SNAPSHOT.jar app.jar
+EXPOSE 8081
+CMD ["java", "-jar", "app.jar"]
+```
+
+## Tests des Endpoints
+
+### 1. Créer un Todo
+```bash
+curl -X POST -H "Content-Type: application/json" \
+     -d '{"title":"Nouvelle tâche","description":"Description","completed":false}' \
+     http://localhost:8081/api
+```
+
+### 2. Récupérer Tous les Todos
+```bash
+curl http://localhost:8081/api
+```
+
+### 3. Récupérer un Todo Spécifique
+```bash
+curl http://localhost:8081/api/1
+```
+
+### 4. Mettre à Jour un Todo
+```bash
+curl -X PUT -H "Content-Type: application/json" \
+     -d '{"title":"Tâche modifiée","description":"Nouvelle description","completed":true}' \
+     http://localhost:8081/api/1
+```
+
+### 5. Supprimer un Todo
+```bash
+curl -X DELETE http://localhost:8081/api/1
+```
+
+## Format des Données
+
+### Requête (POST/PUT)
+```json
+{
+    "title": "Titre du todo",
+    "description": "Description du todo",
+    "completed": false
+}
+```
+
+### Réponse
+```json
+{
+    "id": 1,
+    "title": "Titre du todo",
+    "description": "Description du todo",
+    "completed": false
+}
+```
+
+## Gestion des Erreurs
+
+L'API gère les erreurs suivantes :
+- 404 Not Found : Todo non trouvé
+- 400 Bad Request : Requête invalide
+- 500 Internal Server Error : Erreur serveur
+
+## Déploiement
+
+1. **Build de l'image** :
+   ```bash
+   docker build -t todo-api .
+   ```
+
+2. **Lancement du conteneur** :
+   ```bash
+   docker run -d -p 8081:8081 todo-api
+   ```
+
+## Accéder au Dashboard Traefik
+- Dashboard Traefik : `http://localhost:8080`
+
+## Critères d'Acceptation
+
+✅ API REST implémentée avec Javalin  
+✅ Tous les endpoints CRUD fonctionnels  
+✅ Format JSON pour les requêtes/réponses  
+✅ Gestion des erreurs  
+✅ Tests des endpoints documentés  
+✅ Configuration Docker complète  
+✅ Documentation détaillée de l'API
 
 
-Optional step 2: Integration API - static Web site
---------------------------------------------------
+# Étape 4 : Reverse Proxy avec Traefik
 
-This is a step into unknow territory. But you will figure it out.
+Ce document décrit la mise en place d'un reverse proxy Traefik pour gérer le routage entre le serveur web statique et l'API REST.
 
-The goal of this step is to change your static Web page to periodically make calls to your API server and show the results in the Web page. You will need JavaScript for this and this functionality is called AJAX.
+## Objectifs
 
-Keep it simple! You can start by just making a GET request to the API server and display the result on the page. If you want, you can then you can add more features, but this is not obligatory.
+1. Mettre en place un reverse proxy avec Traefik
+2. Configurer le routage vers les différents services
+3. Activer le dashboard Traefik pour la surveillance
+4. Sécuriser l'infrastructure
+
+## Architecture
+
+```
+                   ┌─────────────────┐
+                   │                 │
+                   │    Traefik      │
+                   │  Reverse Proxy  │
+                   │    (Port 80)    │
+                   │                 │
+                   └────────┬────────┘
+                           │
+                ┌─────────┴──────────┐
+                │                    │
+        ┌───────┴─────┐      ┌──────┴──────┐
+        │             │      │             │
+  ┌─────┴─────┐ ┌────┴────┐ │  ┌────────┐ │
+  │  Static   │ │   API   │ │  │Traefik │ │
+  │   Web     │ │ Service │ │  │Dashboard│ │
+  │  Server   │ │(Port 81)│ │  │(8080)  │ │
+  └───────────┘ └─────────┘ │  └────────┘ │
+                            └──────────────┘
+```
+
+## Configuration Traefik
+
+### docker-compose.yml
+
+```yaml
+version: '3.8'
+
+services:
+  reverse_proxy:
+    image: traefik:v2.10
+    command:
+      - "--api.insecure=true"           # Active le dashboard
+      - "--providers.docker=true"        # Active l'intégration Docker
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"  # Point d'entrée web
+    ports:
+      - "80:80"      # Port pour le trafic web
+      - "8080:8080"  # Port pour le dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  web:
+    # ... configuration du service web ...
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=PathPrefix(`/`)"
+      - "traefik.http.services.web.loadbalancer.server.port=80"
+
+  api:
+    # ... configuration du service api ...
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=PathPrefix(`/api`)"
+      - "traefik.http.services.api.loadbalancer.server.port=8081"
+```
+
+## Explication de la Configuration
+
+### 1. Service Traefik
+
+#### Commandes
+- `--api.insecure=true` : Active le dashboard Traefik (mode non sécurisé pour le développement)
+- `--providers.docker=true` : Permet à Traefik de découvrir les services via Docker
+- `--providers.docker.exposedbydefault=false` : Désactive l'exposition automatique des services
+- `--entrypoints.web.address=:80` : Définit le point d'entrée web sur le port 80
+
+#### Ports
+- `80:80` : Port pour le trafic web
+- `8080:8080` : Port pour accéder au dashboard Traefik
+
+#### Volumes
+- `/var/run/docker.sock:/var/run/docker.sock:ro` : Accès en lecture seule au socket Docker
+
+### 2. Configuration des Services
+
+#### Service Web Statique
+```yaml
+labels:
+  - "traefik.enable=true"  # Active Traefik pour ce service
+  - "traefik.http.routers.web.rule=PathPrefix(`/`)"  # Route le trafic racine
+  - "traefik.http.services.web.loadbalancer.server.port=80"  # Port du service
+```
+
+#### Service API
+```yaml
+labels:
+  - "traefik.enable=true"  # Active Traefik pour ce service
+  - "traefik.http.routers.api.rule=PathPrefix(`/api`)"  # Route le trafic /api
+  - "traefik.http.services.api.loadbalancer.server.port=8081"  # Port du service
+```
+
+## Points d'Accès
+
+- Site Web Statique : `http://localhost/`
+- API REST : `http://localhost/api`
+- Dashboard Traefik : `http://localhost:8080`
+
+## Avantages du Reverse Proxy
+
+1. **Sécurité**
+   - Isolation des services backend
+   - Point d'entrée unique
+   - Masquage de l'infrastructure interne
+
+2. **Gestion**
+   - Configuration centralisée
+   - Surveillance via dashboard
+   - Facilité de maintenance
+
+3. **Flexibilité**
+   - Routage dynamique
+   - Découverte automatique des services
+   - Scalabilité simplifiée
+
+## Tests de Fonctionnement
+
+1. **Vérifier le Dashboard**
+   ```bash
+   curl http://localhost:8080
+   ```
+
+2. **Tester le Site Web**
+   ```bash
+   curl http://localhost/
+   ```
+
+3. **Tester l'API**
+   ```bash
+   curl http://localhost/api
+   ```
+
+## Déploiement
+
+1. **Construire les images Docker** :
+   ```bash
+   docker-compose build 
+   ```
+
+2. **Lancement du conteneur** :
+   ```bash
+   docker compose up -d
+   ```
+
+## Accéder au Dashboard Traefik
+- Dashboard Traefik : `http://localhost:8080`
+
+## Critères d'Acceptation
+
+✅ Traefik configuré et fonctionnel  
+✅ Dashboard accessible  
+✅ Routage correct vers le site web statique  
+✅ Routage correct vers l'API  
+✅ Documentation complète  
+✅ Tests de fonctionnement validés  
+✅ Configuration Docker complète  
+✅ Documentation détaillée de l'API
 
 
-The modern way to make such requests is to use the [JavaScript Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch). But you can also use JQuery if you prefer.
+# Étape 5 : Scalabilité et Load Balancing
+
+Ce document décrit la configuration de la scalabilité et du load balancing avec Traefik.
+
+## Configuration
+
+Dans le fichier `docker-compose.yml`, nous ajoutons simplement la section `deploy` pour chaque service :
+
+```yaml
+services:
+  web:
+    # ... autres configurations ...
+    deploy:
+      replicas: 2  # Nombre d'instances du serveur web statique
+
+  api:
+    # ... autres configurations ...
+    deploy:
+      replicas: 2  # Nombre d'instances de l'API
+```
+
+## Gestion des Instances
+
+### Démarrer avec Plusieurs Instances
+```bash
+docker compose up -d
+```
+Cette commande démarre 2 instances de chaque service comme spécifié dans le fichier docker-compose.yml.
+
+### Modifier le Nombre d'Instances Dynamiquement
+```bash
+# Augmenter le nombre d'instances du serveur web à 3
+docker compose up -d --scale web=3
+
+# Augmenter le nombre d'instances de l'API à 4
+docker compose up -d --scale api=4
+```
+
+### Supprimer dynamiquement des Instances
+Il suffis de faire comment l'augmentation de nombre d'instances en cours de service mais avec un nombre plus petit que le nombre d'instances actuellement en cours de service.
+#### Exemple : Supprimer 2 instances actuellement en cours de service 
+(on part du principe que 4 instances sont actuellement en cours de service)
+```bash
+# Supprimer 2 instances actuellement en cours de service
+docker compose up -d --scale api=2
+```
+
+### Vérifier les Instances en Cours
+```bash
+docker compose ps
+```
+
+## Preuve du Load Balancing en Action
+
+Les logs suivants montrent Traefik distribuant les requêtes entre différentes instances du serveur web (`web-1` et `web-2`) :
+
+```log
+web-2  | 172.20.0.4 - - [22/Jan/2025:14:24:44 +0000] "GET / HTTP/1.1" 200 17507 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0" "172.20.0.1"
+web-1  | 172.20.0.4 - - [22/Jan/2025:14:24:44 +0000] "GET /favicon.ico HTTP/1.1" 404 153 "http://localhost/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0" "172.20.0.1"
+web-2  | 172.20.0.4 - - [22/Jan/2025:14:24:44 +0000] "GET / HTTP/1.1" 304 0 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0" "172.20.0.1"
+web-2  | 172.20.0.4 - - [22/Jan/2025:14:24:45 +0000] "GET / HTTP/1.1" 304 0 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0" "172.20.0.1"
+```
+
+### Analyse des Logs
+
+1. **Distribution des Requêtes** :
+   - On voit que les requêtes sont distribuées entre `web-1` et `web-2`
+   - Les timestamps montrent des requêtes successives traitées par différentes instances
+
+2. **Types de Requêtes** :
+   - `GET /` : Requête principale de la page
+   - `GET /favicon.ico` : Requête pour l'icône du site
+   - Les codes de statut (200, 304, 404) montrent différents types de réponses
+
+3. **Round-Robin** :
+   - Traefik utilise par défaut un algorithme round-robin
+   - Les requêtes sont distribuées de manière équitable entre les instances
+
+## Avantages
+
+1. **Haute Disponibilité**
+   - Les services restent disponibles même si une instance tombe en panne
+   - Traefik détecte automatiquement les instances défaillantes
+
+2. **Équilibrage de Charge**
+   - Distribution automatique du trafic entre les instances
+   - Meilleure utilisation des ressources
+
+3. **Scalabilité Dynamique**
+   - Ajout/suppression d'instances sans interruption de service
+   - Adaptation facile à la charge
+
+## Critères d'Acceptation
+
+✅ Multiple instances configurées dans docker-compose.yml  
+✅ Possibilité d'ajouter/supprimer des instances dynamiquement  
+✅ Load balancing automatique par Traefik (prouvé par les logs)  
+✅ Mise à jour dynamique de l'équilibrage de charge  
+✅ Documentation complète de la configuration
 
 
-### Acceptance criteria
+# Étape 6 : Sessions Collantes avec Traefik
 
-- [ ] You have added JavaScript code to your static Web page to make at least a GET request to the API server.
-- [ ] You can do a demo where you show that the API is called and the result is displayed on the page.
-- [ ] You have **documented** your implementation in your report.
+Ce document décrit la configuration et la validation des sessions collantes (sticky sessions) pour l'API, tout en maintenant le round-robin pour le serveur web statique.
 
+## Configuration
+
+Dans le fichier `docker-compose.yml`, ajoutez les labels suivants pour le service API :
+
+```yaml
+services:
+  api:
+    # ... autres configurations ...
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=PathPrefix(`/api`)"
+      - "traefik.http.services.api.loadbalancer.server.port=8081"
+      - "traefik.http.services.api.loadbalancer.sticky=true"
+      - "traefik.http.services.api.loadbalancer.sticky.cookie=true"
+      - "traefik.http.services.api.loadbalancer.sticky.cookie.name=api_sticky"
+      - "traefik.http.services.api.loadbalancer.sticky.cookie.secure=false"
+```
+
+Le service web statique garde sa configuration d'origine (round-robin par défaut).
+
+## Tests
+
+### 1. Démarrer les services
+```bash
+docker compose down
+docker compose up -d
+```
+
+### 2. Test des Sessions Collantes pour l'API
+
+Exécutez ces commandes dans des terminaux séparés pour voir les logs en temps réel :
+
+```bash
+# Terminal 1 - Voir les logs de l'API
+docker compose logs -f api
+
+# Terminal 2 - Faire des requêtes à l'API
+# Première requête pour obtenir le cookie
+curl -v http://localhost/api
+
+# Copier la valeur du cookie "api_sticky" de la réponse
+# Faire plusieurs requêtes avec le même cookie
+curl -v -b "api_sticky=VALEUR_DU_COOKIE" http://localhost/api
+```
+
+### 3. Test du Round-Robin pour le Serveur Web
+
+```bash
+# Terminal 1 - Voir les logs du serveur web
+docker compose logs -f web
+
+# Terminal 2 - Faire plusieurs requêtes au serveur web
+for i in {1..10}; do curl http://localhost/; done
+```
+
+## Résultats Attendus
+
+### Pour l'API (Sessions Collantes)
+- La première requête crée un cookie "api_sticky"
+- Les requêtes suivantes avec le même cookie sont dirigées vers la même instance
+- Les logs montrent toutes les requêtes d'une session allant vers la même instance
+
+### Pour le Serveur Web (Round-Robin)
+- Les requêtes sont distribuées de manière équilibrée entre web-1 et web-2
+- Pas de cookie de session dans les réponses
+
+# Étape 7 : Sécurisation avec HTTPS
+
+## Objectif
+L'objectif de cette étape est de sécuriser notre infrastructure en utilisant HTTPS pour toutes les communications entre le navigateur et le reverse proxy Traefik.
+
+## Configuration
+
+### 1. Génération des Certificats
+
+Pour générer les certificats SSL/TLS locaux :
+
+```bash
+# Création du répertoire pour les certificats
+mkdir certificates
+
+# Génération de la clé privée et du certificat
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout certificates/cert.key \
+  -out certificates/cert.crt \
+  -subj "/CN=localhost"
+```
+
+### 2. Configuration détaillée de Traefik
+
+Le fichier `traefik.yaml` est le fichier de configuration principal de Traefik. Voici son contenu détaillé :
+
+```yaml
+# Define entrypoints for HTTP and HTTPS
+entryPoints:
+  web:
+    address: ":80"    # Point d'entrée HTTP standard
+    http:
+      redirections:
+        entryPoint:
+          to: websecure    # Redirection vers HTTPS
+          scheme: https    # Utilisation du schéma HTTPS
+  websecure:
+    address: ":443"   # Point d'entrée HTTPS standard
+
+# Enable the Docker provider
+providers:
+  docker:
+    exposedByDefault: false    # Les conteneurs ne sont pas exposés par défaut
+
+# Define TLS settings using the self-signed certificate
+tls:
+  certificates:
+    certFile: /etc/traefik/certificates/traefik.crt    # Chemin vers le certificat
+    keyFile: /etc/traefik/certificates/traefik.key     # Chemin vers la clé privée
+
+# Configure the Traefik dashboard
+api:
+  dashboard: true     # Active le dashboard Traefik
+  insecure: true     # Permet l'accès non sécurisé au dashboard (uniquement pour le développement)
+```
+
+#### Explication des sections :
+
+1. **Points d'entrée (entryPoints)**
+   - `web` : Configure le point d'entrée HTTP sur le port 80
+     - Inclut une redirection automatique vers HTTPS
+   - `websecure` : Configure le point d'entrée HTTPS sur le port 443
+     - Gère tout le trafic HTTPS sécurisé
+
+2. **Provider Docker**
+   - Active l'intégration avec Docker
+   - `exposedByDefault: false` : Sécurité par défaut, nécessite une activation explicite des services
+
+3. **Configuration TLS**
+   - Définit les chemins vers les certificats SSL/TLS
+   - Utilise des certificats auto-signés pour le développement
+   - En production, ces certificats devraient être remplacés par des certificats valides
+
+4. **API et Dashboard**
+   - Active l'interface web de monitoring Traefik
+   - Mode non sécurisé activé pour le développement
+   - En production, il est recommandé de sécuriser ou désactiver le dashboard
+
+### 3. Mise à jour de Docker Compose
+
+Le fichier `docker-compose.yml` a été mis à jour pour :
+- Monter les certificats SSL
+- Configurer les points d'entrée HTTPS
+- Activer TLS pour chaque service
+
+```yaml
+services:
+  reverse_proxy:
+    volumes:
+      - ./certificates:/etc/certs
+    # ... autres configurations ...
+
+  web:
+    labels:
+      - "traefik.http.routers.web.tls=true"
+      # ... autres labels ...
+
+  api:
+    labels:
+      - "traefik.http.routers.api.tls=true"
+      # ... autres labels ...
+```
+
+### 4. Configuration de la Redirection HTTP vers HTTPS
+
+Dans `traefik.yaml`, ajout de la redirection automatique :
+
+```yaml
+http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+```
+
+## Tests et Vérification
+
+### 1. Test des Endpoints HTTPS
+
+```bash
+# Test du site web statique
+curl -k https://localhost/
+
+# Test de l'API
+curl -k https://localhost/api
+```
+
+### 2. Vérification de la Redirection HTTP
+
+```bash
+# La requête HTTP devrait être redirigée vers HTTPS
+curl -L http://localhost/
+```
+
+## Critères d'Acceptation
+
+✅ Certificats SSL générés et configurés  
+✅ HTTPS activé sur tous les services  
+✅ Redirection HTTP vers HTTPS fonctionnelle  
+✅ Communication sécurisée entre les services
+
+## Sécurité
+
+Points importants concernant la sécurité :
+
+1. **Certificats SSL/TLS** :
+   - Utilisation de certificats auto-signés pour le développement
+   - En production, utiliser des certificats valides d'une autorité de certification
+
+2. **Configuration HTTPS** :
+   - Tous les services utilisent HTTPS
+   - Redirection automatique de HTTP vers HTTPS
+   - Protection contre les attaques man-in-the-middle
+
+3. **Bonnes Pratiques** :
+   - Renouvellement régulier des certificats
+   - Configuration appropriée des en-têtes de sécurité
+   - Utilisation de protocoles et chiffrements sécurisés
+
+## Mise à jour des liens API
+
+Pour assurer une intégration complète avec HTTPS, nous avons mis à jour tous les liens vers l'API dans le site web statique :
+- Modification du protocole vers HTTPS
+- Suppression du port explicite (8081)
+- Utilisation du routage via Traefik (`https://localhost/api`)
+
+Ces changements ont été appliqués dans tous les fichiers HTML du site statique pour garantir une expérience utilisateur cohérente et sécurisée.
+
+# Étape supplémentaire 1 : Interface de Gestion avec Portainer
+
+## Description
+Portainer est une interface web qui permet de gérer facilement nos conteneurs Docker. Dans notre infrastructure, Portainer est intégré comme un service supplémentaire accessible via Traefik.
+
+## Configuration
+
+### Service Docker Compose
+```yaml
+portainer:
+  image: portainer/portainer-ce:latest
+  ports:
+    - "9000:9000"
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - portainer_data:/data
+  networks:
+    - web
+  labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.portainer.rule=Host(`localhost`) && PathPrefix(`/portainer`)"
+    - "traefik.http.routers.portainer.entrypoints=websecure"
+    - "traefik.http.routers.portainer.tls=true"
+    - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+```
+
+### Explications des composants clés :
+- **Volumes** :
+  - `/var/run/docker.sock` : Permet à Portainer d'interagir avec le daemon Docker
+  - `portainer_data` : Stocke les données persistantes de Portainer
+
+- **Labels Traefik** :
+  - Configuration pour accéder à Portainer via l'URL : `https://localhost/portainer`
+  - Intégration avec notre configuration HTTPS existante
+
+## Fonctionnalités principales
+- Visualisation de tous les conteneurs en cours d'exécution
+- Gestion des conteneurs (démarrage, arrêt, redémarrage)
+- Consultation des logs des conteneurs
+- Gestion des volumes et des réseaux Docker
+- Interface intuitive pour la gestion des ressources Docker
+
+## Accès à l'interface
+1. Ouvrir un navigateur
+2. Accéder à `https://localhost/portainer`
+3. Créer un compte administrateur lors de la première connexion
+
+
+
+
+# Étape Supplémentaire 2 : Implémentation AJAX pour l'Affichage Dynamique des Todos
+
+Cette section décrit l'implémentation d'une interface utilisateur dynamique pour afficher et gérer les todos en utilisant AJAX avec jQuery.
+
+## Objectif
+
+L'objectif était de créer une page web qui :
+1. Affiche dynamiquement les todos depuis l'API
+2. Se met à jour automatiquement toutes les 5 secondes
+3. Permet de marquer les todos comme complétés/non-complétés
+4. Fournit un retour visuel sur l'état de rafraîchissement
+
+## Implémentation
+
+### 1. Structure HTML et CSS
+
+La page `todos.html` a été créée avec une structure simple et élégante :
+
+    <div class="todo-list" id="todoList">
+        <!-- Todos insérés dynamiquement ici -->
+    </div>
+    <div class="refresh-status" id="refreshStatus"></div>
+
+Le style CSS assure une présentation claire et responsive :
+- Conteneur centré avec une largeur maximale
+- Ombres et bordures arrondies pour le conteneur des todos
+- Style distinct pour les todos complétés (barré et opacité réduite)
+- Indicateur de statut de rafraîchissement en bas de page
+
+### 2. Implémentation AJAX avec jQuery
+
+#### Récupération des Todos
+
+    function fetchTodos() {
+        $.ajax({
+            url: '/api',
+            method: 'GET',
+            success: function(todos) {
+                displayTodos(todos);
+                updateRefreshStatus();
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching todos:', error);
+                $('#refreshStatus').text('Error refreshing data: ' + error);
+            }
+        });
+    }
+
+#### Mise à Jour du Statut d'un Todo
+
+    function toggleTodo(id, completed) {
+        $.ajax({
+            url: '/api/' + id,
+            method: 'GET',
+            success: function(todo) {
+                todo.completed = completed;
+                
+                $.ajax({
+                    url: '/api/' + id,
+                    method: 'PUT',
+                    contentType: 'application/json',
+                    data: JSON.stringify(todo),
+                    success: function() {
+                        fetchTodos();
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error updating todo:', error);
+                    }
+                });
+            }
+        });
+    }
+
+### 3. Rafraîchissement Automatique
+
+Le rafraîchissement périodique est implémenté avec `setInterval` :
+
+    // Rafraîchissement toutes les 5 secondes
+    setInterval(fetchTodos, 5000);
+
+Un indicateur de dernière mise à jour est maintenu :
+
+    function updateRefreshStatus() {
+        const timeString = new Date().toLocaleTimeString();
+        $('#refreshStatus').text('Last updated: ' + timeString);
+    }
+
+## Intégration avec l'Infrastructure Existante
+
+- La page todos.html est servie par le serveur web statique Nginx
+- Les requêtes AJAX sont acheminées vers l'API via Traefik
+- Le CORS est activé sur l'API pour permettre les requêtes cross-origin
+- L'interface est accessible via HTTPS comme le reste de l'infrastructure
+
+## Test de l'Implémentation
+
+Pour tester l'implémentation :
+
+1. Accéder à `https://localhost/todos.html`
+2. Observer le rafraîchissement automatique toutes les 5 secondes
+3. Cocher/décocher les todos pour changer leur état
+4. Vérifier l'horodatage des mises à jour
+5. Tester la résilience en arrêtant/redémarrant l'API
+
+## Critères d'Acceptation
+
+✅ Requêtes AJAX fonctionnelles vers l'API  
+✅ Rafraîchissement automatique des données  
+✅ Interface utilisateur réactive et intuitive  
+✅ Gestion des erreurs et feedback utilisateur  
+✅ Intégration complète avec l'infrastructure existante
