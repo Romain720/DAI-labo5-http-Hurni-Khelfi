@@ -868,4 +868,49 @@ Pour assurer une intégration complète avec HTTPS, nous avons mis à jour tous 
 
 Ces changements ont été appliqués dans tous les fichiers HTML du site statique pour garantir une expérience utilisateur cohérente et sécurisée.
 
+# Étape supplémentaire 1 : Interface de Gestion avec Portainer
+
+## Description
+Portainer est une interface web qui permet de gérer facilement nos conteneurs Docker. Dans notre infrastructure, Portainer est intégré comme un service supplémentaire accessible via Traefik.
+
+## Configuration
+
+### Service Docker Compose
+```yaml
+portainer:
+  image: portainer/portainer-ce:latest
+  ports:
+    - "9000:9000"
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - portainer_data:/data
+  networks:
+    - web
+  labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.portainer.rule=Host(`localhost`) && PathPrefix(`/portainer`)"
+    - "traefik.http.routers.portainer.entrypoints=websecure"
+    - "traefik.http.routers.portainer.tls=true"
+    - "traefik.http.services.portainer.loadbalancer.server.port=9000"
 ```
+
+### Explications des composants clés :
+- **Volumes** :
+  - `/var/run/docker.sock` : Permet à Portainer d'interagir avec le daemon Docker
+  - `portainer_data` : Stocke les données persistantes de Portainer
+
+- **Labels Traefik** :
+  - Configuration pour accéder à Portainer via l'URL : `https://localhost/portainer`
+  - Intégration avec notre configuration HTTPS existante
+
+## Fonctionnalités principales
+- Visualisation de tous les conteneurs en cours d'exécution
+- Gestion des conteneurs (démarrage, arrêt, redémarrage)
+- Consultation des logs des conteneurs
+- Gestion des volumes et des réseaux Docker
+- Interface intuitive pour la gestion des ressources Docker
+
+## Accès à l'interface
+1. Ouvrir un navigateur
+2. Accéder à `https://localhost/portainer`
+3. Créer un compte administrateur lors de la première connexion

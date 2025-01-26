@@ -18,6 +18,8 @@ services:
       - ./traefik.yaml:/etc/traefik/traefik.yaml     # Configuration Traefik
       - ./certificates:/etc/certs                     # Certificats SSL/TLS
     container_name: traefik
+    networks:
+      - web
 
   # Service Web Statique - Serveur Nginx
   web:
@@ -32,6 +34,8 @@ services:
       - "traefik.http.routers.web.tls=true"  # Active TLS pour ce service
       - "traefik.http.services.web.loadbalancer.server.port=80"  # Port du service
     container_name: static-web-server
+    networks:
+      - web
 
   # Service API - Application Java avec Javalin
   api:
@@ -49,3 +53,31 @@ services:
       - "traefik.http.services.api.loadbalancer.sticky.cookie=true"  # Active les sticky sessions
       - "traefik.http.services.api.loadbalancer.sticky.cookie.name=API_STICKY"  # Nom du cookie de session
     container_name: todo-api
+    networks:
+      - web
+
+  # Portainer service
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    ports:
+      - "9000:9000"                       
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  
+      - portainer_data:/data                       
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.rule=Host(`localhost`) && PathPrefix(`/portainer`)"
+      - "traefik.http.routers.portainer.entrypoints=websecure"
+      - "traefik.http.routers.portainer.tls=true"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+    networks:
+      - web                                    
+
+volumes:
+  portainer_data:  # Volume nommé pour stocker les données de Portainer
+
+networks:
+  web:
+    name: web
+    driver: bridge
