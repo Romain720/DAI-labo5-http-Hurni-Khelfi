@@ -346,6 +346,9 @@ L'API gère les erreurs suivantes :
    docker run -d -p 8081:8081 todo-api
    ```
 
+## Accéder au Dashboard Traefik
+- Dashboard Traefik : `http://localhost:8080`
+
 ## Critères d'Acceptation
 
 ✅ API REST implémentée avec Javalin  
@@ -914,3 +917,118 @@ portainer:
 1. Ouvrir un navigateur
 2. Accéder à `https://localhost/portainer`
 3. Créer un compte administrateur lors de la première connexion
+
+
+
+
+# Étape Supplémentaire 2 : Implémentation AJAX pour l'Affichage Dynamique des Todos
+
+Cette section décrit l'implémentation d'une interface utilisateur dynamique pour afficher et gérer les todos en utilisant AJAX avec jQuery.
+
+## Objectif
+
+L'objectif était de créer une page web qui :
+1. Affiche dynamiquement les todos depuis l'API
+2. Se met à jour automatiquement toutes les 5 secondes
+3. Permet de marquer les todos comme complétés/non-complétés
+4. Fournit un retour visuel sur l'état de rafraîchissement
+
+## Implémentation
+
+### 1. Structure HTML et CSS
+
+La page `todos.html` a été créée avec une structure simple et élégante :
+
+    <div class="todo-list" id="todoList">
+        <!-- Todos insérés dynamiquement ici -->
+    </div>
+    <div class="refresh-status" id="refreshStatus"></div>
+
+Le style CSS assure une présentation claire et responsive :
+- Conteneur centré avec une largeur maximale
+- Ombres et bordures arrondies pour le conteneur des todos
+- Style distinct pour les todos complétés (barré et opacité réduite)
+- Indicateur de statut de rafraîchissement en bas de page
+
+### 2. Implémentation AJAX avec jQuery
+
+#### Récupération des Todos
+
+    function fetchTodos() {
+        $.ajax({
+            url: '/api',
+            method: 'GET',
+            success: function(todos) {
+                displayTodos(todos);
+                updateRefreshStatus();
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching todos:', error);
+                $('#refreshStatus').text('Error refreshing data: ' + error);
+            }
+        });
+    }
+
+#### Mise à Jour du Statut d'un Todo
+
+    function toggleTodo(id, completed) {
+        $.ajax({
+            url: '/api/' + id,
+            method: 'GET',
+            success: function(todo) {
+                todo.completed = completed;
+                
+                $.ajax({
+                    url: '/api/' + id,
+                    method: 'PUT',
+                    contentType: 'application/json',
+                    data: JSON.stringify(todo),
+                    success: function() {
+                        fetchTodos();
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error updating todo:', error);
+                    }
+                });
+            }
+        });
+    }
+
+### 3. Rafraîchissement Automatique
+
+Le rafraîchissement périodique est implémenté avec `setInterval` :
+
+    // Rafraîchissement toutes les 5 secondes
+    setInterval(fetchTodos, 5000);
+
+Un indicateur de dernière mise à jour est maintenu :
+
+    function updateRefreshStatus() {
+        const timeString = new Date().toLocaleTimeString();
+        $('#refreshStatus').text('Last updated: ' + timeString);
+    }
+
+## Intégration avec l'Infrastructure Existante
+
+- La page todos.html est servie par le serveur web statique Nginx
+- Les requêtes AJAX sont acheminées vers l'API via Traefik
+- Le CORS est activé sur l'API pour permettre les requêtes cross-origin
+- L'interface est accessible via HTTPS comme le reste de l'infrastructure
+
+## Test de l'Implémentation
+
+Pour tester l'implémentation :
+
+1. Accéder à `https://localhost/todos.html`
+2. Observer le rafraîchissement automatique toutes les 5 secondes
+3. Cocher/décocher les todos pour changer leur état
+4. Vérifier l'horodatage des mises à jour
+5. Tester la résilience en arrêtant/redémarrant l'API
+
+## Critères d'Acceptation
+
+✅ Requêtes AJAX fonctionnelles vers l'API  
+✅ Rafraîchissement automatique des données  
+✅ Interface utilisateur réactive et intuitive  
+✅ Gestion des erreurs et feedback utilisateur  
+✅ Intégration complète avec l'infrastructure existante
