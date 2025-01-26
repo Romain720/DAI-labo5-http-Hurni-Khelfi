@@ -1,47 +1,51 @@
+# Configuration des services Docker pour l'application
 services:
+  # Service Traefik - Reverse Proxy et Load Balancer
   reverse_proxy:
-    image: traefik:v2.10
+    image: traefik:v2.10  # Utilisation de la version 2.10 de Traefik
     command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
+      - "--api.insecure=true"           # Active l'API Traefik en mode non sécurisé (pour le dashboard)
+      - "--providers.docker=true"        # Active le provider Docker
+      - "--providers.docker.exposedbydefault=false"  # Désactive l'exposition automatique des services
+      - "--entrypoints.web.address=:80"  # Point d'entrée HTTP sur le port 80
+      - "--entrypoints.websecure.address=:443"  # Point d'entrée HTTPS sur le port 443
     ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"  # Dashboard
+      - "80:80"     # Port HTTP
+      - "443:443"   # Port HTTPS
+      - "8080:8080" # Port pour le dashboard Traefik
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik.yaml:/etc/traefik/traefik.yaml
-      - ./certificates:/etc/certs
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Socket Docker en lecture seule
+      - ./traefik.yaml:/etc/traefik/traefik.yaml     # Configuration Traefik
+      - ./certificates:/etc/certs                     # Certificats SSL/TLS
     container_name: traefik
 
+  # Service Web Statique - Serveur Nginx
   web:
     build:
-      context: ./static-web-server
+      context: ./static-web-server  # Dossier contenant le Dockerfile du serveur web
     expose:
-      - "80"
+      - "80"  # Expose le port 80 en interne
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`localhost`) && PathPrefix(`/`)"
-      - "traefik.http.routers.web.entrypoints=websecure"
-      - "traefik.http.routers.web.tls=true"
-      - "traefik.http.services.web.loadbalancer.server.port=80"
+      - "traefik.enable=true"  # Active Traefik pour ce service
+      - "traefik.http.routers.web.rule=Host(`localhost`) && PathPrefix(`/`)"  # Route tout le trafic vers /
+      - "traefik.http.routers.web.entrypoints=websecure"  # Utilise le point d'entrée HTTPS
+      - "traefik.http.routers.web.tls=true"  # Active TLS pour ce service
+      - "traefik.http.services.web.loadbalancer.server.port=80"  # Port du service
     container_name: static-web-server
 
+  # Service API - Application Java avec Javalin
   api:
     build:
-      context: ./labo5-http-code-java
+      context: ./labo5-http-code-java  # Dossier contenant le Dockerfile de l'API
     expose:
-      - "8081"
+      - "8081"  # Expose le port 8081 en interne
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.api.entrypoints=websecure"
-      - "traefik.http.routers.api.tls=true"
-      - "traefik.http.services.api.loadbalancer.server.port=8081"
-      # Configuration des sticky sessions pour l'API
-      - "traefik.http.services.api.loadbalancer.sticky.cookie=true"
-      - "traefik.http.services.api.loadbalancer.sticky.cookie.name=API_STICKY"
+      - "traefik.enable=true"  # Active Traefik pour ce service
+      - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"  # Route le trafic /api
+      - "traefik.http.routers.api.entrypoints=websecure"  # Utilise le point d'entrée HTTPS
+      - "traefik.http.routers.api.tls=true"  # Active TLS pour ce service
+      - "traefik.http.services.api.loadbalancer.server.port=8081"  # Port du service
+      # Configuration des sessions persistantes
+      - "traefik.http.services.api.loadbalancer.sticky.cookie=true"  # Active les sticky sessions
+      - "traefik.http.services.api.loadbalancer.sticky.cookie.name=API_STICKY"  # Nom du cookie de session
     container_name: todo-api

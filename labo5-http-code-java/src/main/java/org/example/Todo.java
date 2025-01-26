@@ -1,14 +1,32 @@
 package org.example;
 
+/**
+ * Classe modèle représentant une tâche (todo).
+ * Cette classe définit la structure des données pour chaque todo dans l'application.
+ */
 public class Todo {
+    // Identifiant unique du todo
     private Long id;
+    // Titre de la tâche
     private String title;
+    // Description détaillée de la tâche
     private String description;
+    // État de complétion de la tâche
     private boolean completed;
 
+    /**
+     * Constructeur par défaut requis pour la désérialisation JSON
+     */
     public Todo() {
     }
 
+    /**
+     * Constructeur avec tous les champs
+     * @param id Identifiant unique du todo
+     * @param title Titre de la tâche
+     * @param description Description détaillée
+     * @param completed État de complétion
+     */
     public Todo(Long id, String title, String description, boolean completed) {
         this.id = id;
         this.title = title;
@@ -16,7 +34,7 @@ public class Todo {
         this.completed = completed;
     }
 
-    // Getters and Setters
+    // Getters et Setters
     public Long getId() {
         return id;
     }

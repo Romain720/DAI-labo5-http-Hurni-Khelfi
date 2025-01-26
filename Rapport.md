@@ -28,6 +28,28 @@ EXPOSE 80
 
 ```
 
+### 3. Configuration de Nginx
+
+Le fichier `nginx.conf` configure le comportement du serveur Nginx :
+
+```nginx
+server {
+    listen 80;              # Écoute sur le port 80 (HTTP)
+    server_name localhost;  # Nom du serveur
+
+    location / {
+        root /usr/share/nginx/html;  # Dossier racine contenant les fichiers statiques
+        index index.html;            # Fichier par défaut à servir
+    }
+}
+```
+
+Cette configuration :
+- Configure le serveur pour écouter sur le port 80 (HTTP standard)
+- Définit le nom du serveur comme "localhost"
+- Spécifie que tous les fichiers statiques seront servis depuis le dossier `/usr/share/nginx/html`
+- Utilise `index.html` comme page par défaut
+
 # Étape 2 : Configuration Docker Compose
 
 Ce document décrit la configuration initiale de Docker Compose pour orchestrer notre serveur web statique.
@@ -56,7 +78,6 @@ project/
 Le fichier `docker-compose.yml` initial :
 
 ```yaml
-version: '3.8'                  # Version de Docker Compose
 
 services:
   web:                         # Service pour le serveur web statique
@@ -69,19 +90,16 @@ services:
 
 ### Explication de la Configuration
 
-1. **Version** :
-   - `version: '3.8'` : Utilise la version 3.8 de Docker Compose qui offre toutes les fonctionnalités modernes.
-
-2. **Services** :
+1. **Services** :
    - `web` : Nom du service pour notre serveur web statique.
    
-3. **Build** :
+2. **Build** :
    - `context: ./static-web-server` : Indique le dossier contenant le Dockerfile.
    
-4. **Ports** :
+3. **Ports** :
    - `"8080:80"` : Redirige le port 8080 de l'hôte vers le port 80 du conteneur.
    
-5. **Container Name** :
+4. **Container Name** :
    - `container_name: static-web-server` : Nom explicite pour le conteneur.
 
 ## Commandes Docker Compose
@@ -484,16 +502,20 @@ labels:
    curl http://localhost/api
    ```
 
-## Dépannage
+## Déploiement
 
-1. **Dashboard inaccessible**
-   - Vérifier que le port 8080 n'est pas utilisé
-   - Vérifier les logs Traefik : `docker compose logs reverse_proxy`
+1. **Construire les images Docker** :
+   ```bash
+   docker-compose build 
+   ```
 
-2. **Services inaccessibles**
-   - Vérifier les labels Traefik
-   - Vérifier que les services sont en cours d'exécution
-   - Consulter le dashboard pour l'état des routeurs
+2. **Lancement du conteneur** :
+   ```bash
+   docker compose up -d
+   ```
+
+## Accéder au Dashboard Traefik
+- Dashboard Traefik : `http://localhost:8080`
 
 ## Critères d'Acceptation
 
@@ -502,38 +524,9 @@ labels:
 ✅ Routage correct vers le site web statique  
 ✅ Routage correct vers l'API  
 ✅ Documentation complète  
-✅ Tests de fonctionnement validés
-
-## Mise à jour du site statique
-
-Les liens vers l'API dans le site web statique ont été mis à jour pour utiliser HTTPS :
-
-### 1. Modifications des URLs
-
-Dans tous les fichiers HTML (`index.html`, `contact.html`, `trainer.html`, `why.html`), les liens vers l'API ont été modifiés :
-
-Avant :
-```html
-<a class="nav-link" href="http://localhost:8081/api" target="_blank">API</a>
-```
-
-Après :
-```html
-<a class="nav-link" href="https://localhost/api" target="_blank">API</a>
-```
-
-Changements effectués :
-- Protocole changé de `http://` à `https://`
-- Port 8081 supprimé car Traefik gère maintenant le routage
-- Chemin `/api` maintenu pour la cohérence avec la configuration de Traefik
-
-### 2. Impact des changements
-
-Ces modifications assurent que :
-- Toutes les communications sont sécurisées via HTTPS
-- Les requêtes passent correctement par le reverse proxy Traefik
-- Les sticky sessions sont maintenues pour l'API
-- L'expérience utilisateur est cohérente avec le reste de l'infrastructure sécurisée
+✅ Tests de fonctionnement validés  
+✅ Configuration Docker complète  
+✅ Documentation détaillée de l'API
 
 
 # Étape 5 : Scalabilité et Load Balancing
@@ -572,6 +565,15 @@ docker compose up -d --scale web=3
 
 # Augmenter le nombre d'instances de l'API à 4
 docker compose up -d --scale api=4
+```
+
+### Supprimer dynamiquement des Instances
+Il suffis de faire comment l'augmentation de nombre d'instances en cours de service mais avec un nombre plus petit que le nombre d'instances actuellement en cours de service.
+#### Exemple : Supprimer 2 instances actuellement en cours de service 
+(on part du principe que 4 instances sont actuellement en cours de service)
+```bash
+# Supprimer 2 instances actuellement en cours de service
+docker compose up -d --scale api=2
 ```
 
 ### Vérifier les Instances en Cours
@@ -698,16 +700,6 @@ for i in {1..10}; do curl http://localhost/; done
 - Les requêtes sont distribuées de manière équilibrée entre web-1 et web-2
 - Pas de cookie de session dans les réponses
 
-## Dépannage
-
-Si les sessions collantes ne fonctionnent pas :
-1. Vérifiez que le cookie est bien présent dans la réponse de l'API
-2. Assurez-vous que le cookie est correctement envoyé dans les requêtes suivantes
-3. Vérifiez les logs Traefik pour des erreurs éventuelles :
-```bash
-docker compose logs reverse_proxy
-```
-
 # Étape 7 : Sécurisation avec HTTPS
 
 ## Objectif
@@ -715,152 +707,157 @@ L'objectif de cette étape est de sécuriser notre infrastructure en utilisant H
 
 ## Configuration
 
-### 1. Configuration de Traefik (`traefik.yaml`)
+### 1. Génération des Certificats
+
+Pour générer les certificats SSL/TLS locaux :
+
+```bash
+# Création du répertoire pour les certificats
+mkdir certificates
+
+# Génération de la clé privée et du certificat
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout certificates/cert.key \
+  -out certificates/cert.crt \
+  -subj "/CN=localhost"
+```
+
+### 2. Configuration détaillée de Traefik
+
+Le fichier `traefik.yaml` est le fichier de configuration principal de Traefik. Voici son contenu détaillé :
 
 ```yaml
+# Define entrypoints for HTTP and HTTPS
 entryPoints:
   web:
-    address: ":80"
+    address: ":80"    # Point d'entrée HTTP standard
     http:
+      redirections:
+        entryPoint:
+          to: websecure    # Redirection vers HTTPS
+          scheme: https    # Utilisation du schéma HTTPS
+  websecure:
+    address: ":443"   # Point d'entrée HTTPS standard
+
+# Enable the Docker provider
+providers:
+  docker:
+    exposedByDefault: false    # Les conteneurs ne sont pas exposés par défaut
+
+# Define TLS settings using the self-signed certificate
+tls:
+  certificates:
+    certFile: /etc/traefik/certificates/traefik.crt    # Chemin vers le certificat
+    keyFile: /etc/traefik/certificates/traefik.key     # Chemin vers la clé privée
+
+# Configure the Traefik dashboard
+api:
+  dashboard: true     # Active le dashboard Traefik
+  insecure: true     # Permet l'accès non sécurisé au dashboard (uniquement pour le développement)
+```
+
+#### Explication des sections :
+
+1. **Points d'entrée (entryPoints)**
+   - `web` : Configure le point d'entrée HTTP sur le port 80
+     - Inclut une redirection automatique vers HTTPS
+   - `websecure` : Configure le point d'entrée HTTPS sur le port 443
+     - Gère tout le trafic HTTPS sécurisé
+
+2. **Provider Docker**
+   - Active l'intégration avec Docker
+   - `exposedByDefault: false` : Sécurité par défaut, nécessite une activation explicite des services
+
+3. **Configuration TLS**
+   - Définit les chemins vers les certificats SSL/TLS
+   - Utilise des certificats auto-signés pour le développement
+   - En production, ces certificats devraient être remplacés par des certificats valides
+
+4. **API et Dashboard**
+   - Active l'interface web de monitoring Traefik
+   - Mode non sécurisé activé pour le développement
+   - En production, il est recommandé de sécuriser ou désactiver le dashboard
+
+### 3. Mise à jour de Docker Compose
+
+Le fichier `docker-compose.yml` a été mis à jour pour :
+- Monter les certificats SSL
+- Configurer les points d'entrée HTTPS
+- Activer TLS pour chaque service
+
+```yaml
+services:
+  reverse_proxy:
+    volumes:
+      - ./certificates:/etc/certs
+    # ... autres configurations ...
+
+  web:
+    labels:
+      - "traefik.http.routers.web.tls=true"
+      # ... autres labels ...
+
+  api:
+    labels:
+      - "traefik.http.routers.api.tls=true"
+      # ... autres labels ...
+```
+
+### 4. Configuration de la Redirection HTTP vers HTTPS
+
+Dans `traefik.yaml`, ajout de la redirection automatique :
+
+```yaml
+http:
       redirections:
         entryPoint:
           to: websecure
           scheme: https
-  websecure:
-    address: ":443"
-
-tls:
-  certificates:
-    - certFile: "/etc/certs/cert.crt"
-      keyFile: "/etc/certs/cert.key"
 ```
 
-Cette configuration :
-- Définit deux points d'entrée : `web` (port 80) et `websecure` (port 443)
-- Configure la redirection automatique de HTTP vers HTTPS
-- Spécifie l'emplacement des certificats SSL
+## Tests et Vérification
 
-### 2. Configuration Docker Compose (`docker-compose.yml`)
+### 1. Test des Endpoints HTTPS
 
-```yaml
-services:
-  reverse-proxy:
-    # ... autres configurations ...
-    ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"
-    volumes:
-      - ./certificates:/etc/certs
-      - ./traefik.yaml:/etc/traefik/traefik.yaml
+```bash
+# Test du site web statique
+curl -k https://localhost/
 
-  web:
-    # ... autres configurations ...
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`localhost`) && PathPrefix(`/`)"
-      - "traefik.http.routers.web.entrypoints=websecure"
-      - "traefik.http.routers.web.tls=true"
-
-  todo-api:
-    # ... autres configurations ...
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.api.entrypoints=websecure"
-      - "traefik.http.routers.api.tls=true"
+# Test de l'API
+curl -k https://localhost/api
 ```
 
-Modifications principales :
-- Ajout du port 443 pour HTTPS
-- Montage des certificats SSL
-- Configuration TLS pour les services web et API
-- Définition des règles de routage avec Host et PathPrefix
+### 2. Vérification de la Redirection HTTP
 
-## Points de vérification
+```bash
+# La requête HTTP devrait être redirigée vers HTTPS
+curl -L http://localhost/
+```
 
-Pour vérifier que la configuration HTTPS fonctionne correctement :
+## Critères d'Acceptation
 
-1. Accès aux services :
-   - Site web : https://localhost
-   - API : https://localhost/api
-   - Dashboard Traefik : http://localhost:8080
-
-2. Vérifications :
-   - Le navigateur affiche le cadenas HTTPS
-   - La redirection HTTP vers HTTPS fonctionne
-   - Les certificats SSL sont correctement chargés
-
-## Résolution des problèmes courants
-
-1. Erreur de certificat :
-   - Vérifier que les certificats sont correctement montés dans `/etc/certs`
-   - Vérifier les permissions des fichiers de certificats
-
-2. Erreur de redirection :
-   - Vérifier la configuration des points d'entrée dans `traefik.yaml`
-   - Vérifier les labels des services dans `docker-compose.yml`
-
-3. Service inaccessible :
-   - Vérifier que les ports 80 et 443 sont libres
-   - Vérifier les logs de Traefik avec `docker logs traefik`
+✅ Certificats SSL générés et configurés  
+✅ HTTPS activé sur tous les services  
+✅ Redirection HTTP vers HTTPS fonctionnelle  
+✅ Communication sécurisée entre les services
 
 ## Sécurité
 
 Points importants concernant la sécurité :
-- Les certificats utilisés sont auto-signés (acceptables en développement)
-- La redirection HTTP vers HTTPS est obligatoire
-- Le dashboard Traefik reste accessible en HTTP (port 8080)
-- Les sticky sessions sont maintenues pour l'API via HTTPS
 
+1. **Certificats SSL/TLS** :
+   - Utilisation de certificats auto-signés pour le développement
+   - En production, utiliser des certificats valides d'une autorité de certification
 
-# Étape 7 : Sécurisation avec HTTPS
+2. **Configuration HTTPS** :
+   - Tous les services utilisent HTTPS
+   - Redirection automatique de HTTP vers HTTPS
+   - Protection contre les attaques man-in-the-middle
 
-## Objectif
-
-L'objectif de cette étape était de sécuriser notre infrastructure en implémentant HTTPS pour toutes les communications entre le navigateur et notre reverse proxy Traefik.
-
-## Modifications effectuées
-
-1. Configuration de Traefik :
-   - Ajout du point d'entrée `websecure` sur le port 443
-   - Configuration de la redirection HTTP vers HTTPS
-   - Configuration des certificats SSL
-
-2. Mise à jour des services :
-   - Activation de TLS pour le site web statique et l'API
-   - Configuration des règles de routage avec Host et PathPrefix
-   - Maintien des sticky sessions pour l'API en HTTPS
-
-## Validation
-- Le site web est accessible via https://localhost
-- L'API est accessible via https://localhost/api
-- La redirection HTTP vers HTTPS fonctionne correctement
-- Les certificats SSL sont correctement chargés
-
-## Procédure suivie
-
-### 1. Génération des certificats SSL
-
-Nous avons généré des certificats SSL auto-signés pour le développement en utilisant OpenSSL. Les certificats ont été stockés dans le dossier `certificates/`.
-
-### 2. Configuration de Traefik
-
-Nous avons configuré Traefik pour :
-- Rediriger automatiquement tout le trafic HTTP vers HTTPS
-- Utiliser le point d'entrée `websecure` sur le port 443
-- Utiliser les certificats SSL générés
-
-### 3. Vérification
-
-Pour vérifier que la configuration HTTPS fonctionne correctement, nous avons :
-1. Accédé au site via HTTPS (`https://localhost`)
-2. Vérifié la présence du cadenas dans la barre d'adresse
-3. Confirmé que la redirection HTTP vers HTTPS fonctionne
-
-Pour plus de détails sur la configuration et le dépannage, voir la documentation complète dans le dossier `certificates/README.md`.
-
-Pour plus de détails sur la configuration et le dépannage, voir la documentation complète dans `traefik/README.md`.
+3. **Bonnes Pratiques** :
+   - Renouvellement régulier des certificats
+   - Configuration appropriée des en-têtes de sécurité
+   - Utilisation de protocoles et chiffrements sécurisés
 
 ## Mise à jour des liens API
 
@@ -870,3 +867,5 @@ Pour assurer une intégration complète avec HTTPS, nous avons mis à jour tous 
 - Utilisation du routage via Traefik (`https://localhost/api`)
 
 Ces changements ont été appliqués dans tous les fichiers HTML du site statique pour garantir une expérience utilisateur cohérente et sécurisée.
+
+```
